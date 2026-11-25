@@ -4,7 +4,7 @@
 """Posture check: watches you through the webcam and nags via notify-send.
 
 Run: uv run posture.py
-Keys (preview window must be focused): c = recalibrate, p = pause/resume, q = quit.
+Keys (preview window must be focused): c = recalibrate, p = pause/resume, m = mute sound, n = hide notifications, q = quit.
 Log intervals still open at stop (bad posture, away, pause) end at the "stop" row.
 """
 import csv
@@ -27,12 +27,16 @@ LEAN = 0.06      # head moved this far toward the screen, in frame widths = lean
 GRACE = 20       # seconds of bad posture before the first nag
 REPEAT = 120     # seconds between nags while it continues
 AWAY_AFTER = 10  # seconds without a detected person = away
+DOWN_DELAY = 2   # seconds bad posture must last before its sound plays
+UP_DELAY = 0.5   # seconds good posture must last before the "recovered" sound plays
 COUNTDOWN = 5    # calibration: seconds to sit straight before sampling starts
 SAMPLE = 3       # calibration: seconds averaged into the profile
 EVERY = 0.5      # seconds between pose detections
 PROFILE = Path.home() / ".config/posture-check/profile.json"
 LOG = Path.home() / ".local/share/posture-check/log.csv"
 MODEL = Path(__file__).with_name("pose_landmarker_lite.task")
+SOUND_DIR = Path(__file__).with_name("sounds")
+SOUNDS = {"down": "winding_down.wav", "up": "ratchet_up.wav", "nag": "four_clicks.wav"}
 WIN = "posture-check"
 PANEL = 165      # height in pixels of the stats strip under the video
 GREEN, RED, YELLOW, WHITE, GREY = (90, 220, 90), (90, 90, 255), (0, 220, 255), (235, 235, 235), (170, 170, 170)  # BGR
@@ -80,6 +84,25 @@ def due(bad_since, last_nag, now):
     return last_nag is None or now - last_nag >= REPEAT
 
 
+class Cues:
+    """Decides which sound to play. A sound plays only after the new state has lasted DOWN_DELAY (bad) or UP_DELAY (good).
+    "down": posture turned bad. "up": posture is good again, but only after "down" played."""
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.announced, self.bad, self.since = False, False, 0.0
+
+    def update(self, problem, now):
+        if bool(problem) != self.bad:
+            self.bad, self.since = bool(problem), now
+        if now - self.since < (DOWN_DELAY if self.bad else UP_DELAY) or self.bad == self.announced:
+            return None
+        self.announced = self.bad
+        return "down" if self.bad else "up"
+
+
 def log(event, detail=""):
     LOG.parent.mkdir(parents=True, exist_ok=True)
     new = not LOG.exists()
@@ -110,8 +133,13 @@ def nag(problem):
     subprocess.run(["notify-send", "-a", "posture-check", "Posture", f"{problem}: sit up straight"], check=False)
 
 
-def draw(frame, lm, status, color, stats):
-    """The video with the skeleton on it, and a dark stats strip below. stats = (ratio, lean) or None."""
+def play(name):
+    subprocess.Popen(["pw-play", str(SOUND_DIR / SOUNDS[name])])  # does not wait: the app keeps running
+
+
+def draw(frame, lm, status, color, stats, off):
+    """The video with the skeleton on it, and a dark stats strip below.
+    stats = (ratio, lean) or None. off = names of the features that are switched off."""
     import cv2
     h, w = frame.shape[:2]
     if lm:
@@ -125,6 +153,8 @@ def draw(frame, lm, status, color, stats):
         cv2.putText(out, text, (x, h + y), cv2.FONT_HERSHEY_SIMPLEX, scale, col, thick, cv2.LINE_AA)
 
     put(status, 15, 45, 1.4, color, 3)
+    for i, name in enumerate(off):
+        put(f"{name} off", 430, 26 + 24 * i, 0.6, YELLOW, 1)
     ratio, lean = stats or (None, None)
     rows = [("Head height", ratio, ".2f", f"warn below {SLOUCH}", ratio is not None and ratio < SLOUCH),
             ("Lean in", lean, "+.2f", f"warn above {LEAN}", lean is not None and lean > LEAN)]
@@ -133,7 +163,7 @@ def draw(frame, lm, status, color, stats):
         put(name, 15, y, 1.0, WHITE)
         put("--" if value is None else format(value, fmt), 230, y, 1.0, RED if bad else WHITE)
         put(limit, 340, y, 0.7, GREY)
-    put("c recalibrate    p pause    q quit", 15, 152, 0.7, GREY, 1)
+    put("c recalibrate   p pause   m sound   n notify   q quit", 15, 152, 0.7, GREY, 1)
     return out
 
 
@@ -144,11 +174,16 @@ def main():
 
     if not shutil.which("notify-send"):
         raise SystemExit("notify-send not found (sudo dnf install libnotify)")
+    if not shutil.which("pw-play"):
+        raise SystemExit("pw-play not found (sudo dnf install pipewire-utils)")
+    missing = [f for f in SOUNDS.values() if not (SOUND_DIR / f).exists()]
+    if missing:
+        raise SystemExit(f"sound files missing in {SOUND_DIR}: {', '.join(missing)} (run: python3 sounds/synth.py)")
     if not MODEL.exists():
         raise SystemExit(f"model file missing: {MODEL}")
     cap = cv2.VideoCapture(CAMERA)
     if not cap.isOpened():
-        raise SystemExit(f"cannot open camera {CAMERA}")
+        raise SystemExit(f"cannot open camera {CAMERA} (is another program using it? posture-check may already run)")
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
     landmarker = vision.PoseLandmarker.create_from_options(vision.PoseLandmarkerOptions(
@@ -160,7 +195,8 @@ def main():
     t0 = time.monotonic()
     calib = t0 if profile is None else None  # start time of a running calibration
     samples, recent = [], deque(maxlen=5)
-    paused = away = False
+    paused = away = muted = hushed = False  # muted: no sound. hushed: no notifications
+    cues = Cues()
     problem = bad_since = last_nag = None
     last_seen = last_detect = t0
     lm, stats = None, None
@@ -200,6 +236,7 @@ def main():
                         log("away")
                         problem = set_problem(problem, None)
                         recent.clear()
+                        cues.reset()
                 else:
                     if away:
                         away = False
@@ -213,8 +250,14 @@ def main():
                         if new != problem:
                             problem = set_problem(problem, new)
                             bad_since, last_nag = now, None
+                        cue = cues.update(problem, now)
+                        if cue and not muted:
+                            play(cue)
                         if problem and due(bad_since, last_nag, now):
-                            nag(problem)
+                            if not hushed:
+                                nag(problem)
+                            if not muted:
+                                play("nag")
                             last_nag = now
 
             if calib is not None:
@@ -227,7 +270,8 @@ def main():
             else:
                 status, color = "OK", GREEN
             live = stats if calib is None and not paused and not away else None
-            cv2.imshow(WIN, draw(frame, lm, status, color, live))
+            off = [name for name, flag in (("sound", muted), ("notifications", hushed)) if flag]
+            cv2.imshow(WIN, draw(frame, lm, status, color, live, off))
             key = cv2.waitKey(1) & 0xFF
             if key == ord("q") or cv2.getWindowProperty(WIN, cv2.WND_PROP_VISIBLE) < 1:
                 break
@@ -236,11 +280,17 @@ def main():
                 log("pause" if paused else "resume")
                 problem = set_problem(problem, None)
                 recent.clear()
+                cues.reset()
                 lm, last_seen = None, now
+            if key == ord("m"):
+                muted = not muted
+            if key == ord("n"):
+                hushed = not hushed
             if key == ord("c"):
                 calib, samples = now, []
                 problem = set_problem(problem, None)
                 recent.clear()
+                cues.reset()
     finally:
         signal.signal(signal.SIGINT, signal.SIG_IGN)  # a second Ctrl+C must not interrupt the teardown
         set_problem(problem, None)

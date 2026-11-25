@@ -10,6 +10,7 @@ Tested on Fedora with GNOME on Wayland.
 
 - A webcam
 - `notify-send` (package `libnotify`)
+- `pw-play` (package `pipewire-utils`)
 - [uv](https://docs.astral.sh/uv/)
 
 ## Start
@@ -30,6 +31,8 @@ Click the window before you press a key.
 |-----|--------|
 | `c` | Calibrate again. Do this after you move the camera or the chair. |
 | `p` | Pause or resume. |
+| `m` | Mute or unmute the sounds. The notifications stay on. |
+| `n` | Hide or show the notifications. The sounds stay on. |
 | `q` | Quit. |
 
 ## How it works
@@ -41,7 +44,17 @@ The app compares your head with the profile. It uses two numbers:
 
 When a number passes its limit, the app starts a timer. After 20 seconds, you get a notification. The app repeats it every 2 minutes until you sit straight.
 
-The limits are constants at the top of `posture.py`: `SLOUCH`, `LEAN`, `GRACE` and `REPEAT`. The window shows the live numbers.
+The limits are constants at the top of `posture.py`: `SLOUCH`, `LEAN`, `GRACE`, `REPEAT`, `DOWN_DELAY` and `UP_DELAY`. The window shows the live numbers.
+
+## Sound
+
+The app plays three sounds with `pw-play`.
+
+- `winding_down.wav` plays when your posture has been bad for 2 seconds.
+- `four_clicks.wav` plays with each notification.
+- `ratchet_up.wav` plays when your posture has been good for 0.5 seconds. It plays only after `winding_down.wav` played.
+
+Press `m` to mute the sounds. To change a sound, edit `sounds/synth.py`. Then run `python3 sounds/synth.py`.
 
 ## Log
 
