@@ -18,6 +18,7 @@ For each change, add a line under `[Unreleased]`. To make a release, rename that
 - Calibration shows a large countdown number and a progress bar for the sampling.
 - A badge, a clock and a scanline look on the picture. Set `CRT = False` in `posture.py` to remove the scanlines.
 - Key `f` flips the picture.
+- The README shows the app logo.
 
 ### Changed
 

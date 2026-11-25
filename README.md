@@ -1,4 +1,8 @@
-# posture-check
+<p align="center">
+  <img src="icon/posture-check.svg" alt="The posture-check logo: a shrimp curled in a golden spiral" width="128" height="128">
+</p>
+
+<h1 align="center">posture-check</h1>
 
 posture-check watches your posture with a webcam. It shows a desktop notification when you slouch or lean toward the screen. It also reminds you to take a break.
 
