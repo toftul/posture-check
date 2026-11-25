@@ -6,6 +6,29 @@ For each change, add a line under `[Unreleased]`. To make a release, rename that
 
 ## [Unreleased]
 
+### Added
+
+- A new window with three parts, after the design of posture-check by enkr1. The camera is on the left, the log of the day is on the right, and the controls are below.
+- The log panel. TODAY shows the episodes, the bad time, the average length and the busiest hour. LOG lists the episodes with the outcome FIXED, SLOW or IGNORED, and also the breaks, snoozes, pauses, times away and calibrations. It reads the rows of today from the log file at start.
+- Clickable buttons for every key. The buttons show their key and their state.
+- The window shows three states in three colors. Green is OK. Yellow is a problem before the first nag. Red is a problem after a nag. The frame of the picture, the figure and the status text use the color.
+- A bar for each number. It shows the limit, the band of the hysteresis, your baseline and the live value.
+- A timeline of the last 30 minutes with the share of OK time ("aligned").
+- A hint over the picture when a frame cannot be measured: "No person in view" or "Not seen: right shoulder".
+- Calibration shows a large countdown number and a progress bar for the sampling.
+- A badge, a clock and a scanline look on the picture. Set `CRT = False` in `posture.py` to remove the scanlines.
+- Key `f` flips the picture.
+
+### Changed
+
+- The window is 960 by 640 pixels. Before, it was 400 pixels wide.
+- The figure is a line for the shoulders and one dot for the head, with a dashed line between them. Before, it was 13 dots and the shoulder line.
+- The picture is a mirror image. Set `MIRROR = False` in `posture.py` for the old view.
+- The status text is yellow until the first nag. Before, it was red at once.
+- A second press of `s` ends the snooze.
+- The bars replace the text "warn below 0.85" and "warn above 0.06".
+- The colors follow the enkr1 design.
+
 ## [0.4.0] - 2026-11-25
 
 ### Added

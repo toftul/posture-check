@@ -23,17 +23,48 @@ The app saves the result in `~/.config/posture-check/profile.json`. Later runs u
 
 Put the camera in front of you or up to about 45 degrees to the side. To use another camera, run `uv run posture.py --camera 1`.
 
+## The window
+
+The window is 960 by 640 pixels. You can resize it. The design follows [posture-check by enkr1](https://github.com/enkr1/posture-check).
+
+```
++---------------------+-----------+
+| A  camera           | B  today  |
+|                     |    log    |
++---------------------+-----------+
+| C  controls                     |
++---------------------------------+
+```
+
+**A, the camera.** The picture is a mirror image. It shows a line for your shoulders and one dot for your head. A dashed line joins them. This is what the app measures.
+
+- A frame, the line and the dot share one color. Green means OK. Yellow means a problem started and no nag has fired yet. Red means the app sent a nag. A thick red frame means a nag is active.
+- The app ignores a frame when it cannot see the nose or a shoulder well. The picture then names the point it cannot see.
+- A large number counts down during the calibration.
+- The scanlines and the dark corners are for the look. Set `CRT = False` to remove them. Set `MIRROR = False` for a picture that is not a mirror image.
+
+**B, the day.** TODAY shows the number of episodes, the bad time, the average length and the busiest hour. An episode is bad posture that lasted 20 seconds or more. LOG lists the episodes with the newest first. It also lists breaks, snoozes, pauses, times away and calibrations. The log panel reads the rows of today from the log file at start. Each episode has an outcome:
+
+| Outcome | Meaning |
+|---------|---------|
+| FIXED | You sat straight within 30 seconds of the first nag. |
+| SLOW | You sat straight, but later. No second nag came. |
+| IGNORED | A second nag came before you sat straight. |
+
+**C, the controls.** The left side shows the state. Each number has a bar. The red zone is a problem. The yellow zone is the band where a state that already started stays. The green zone is OK. The thin line is your baseline. The white mark is the live value. The buttons work like the keys below. A green border means a toggle is on. A line through the name means it is off. The timeline shows the last 30 minutes. Green is OK. Yellow is a problem before the nag. Red is a problem after the nag. Grey is away or paused. A tick marks every 10 minutes. "aligned" is the share of OK time. Away and paused time do not count.
+
 ## Keys
 
-Click the window before you press a key.
+Click a button, or click the window and press a key.
 
 | Key | Action |
 |-----|--------|
 | `c` | Calibrate again. Do this after you move the camera or the chair. |
 | `p` | Pause or resume. |
-| `s` | Snooze for 5 minutes. The app starts again by itself. Press `p` to start earlier. |
+| `s` | Snooze for 5 minutes. The app starts again by itself. Press `s` or `p` again to start earlier. |
 | `m` | Mute or unmute the sounds. The notifications stay on. |
 | `n` | Hide or show the notifications. The sounds stay on. |
+| `f` | Flip the picture. |
 | `q` | Quit. |
 
 ## How it works
@@ -49,7 +80,7 @@ When a number passes its limit, the app starts a timer. After 20 seconds, you ge
 
 A problem ends only when its number is well back inside the limit. Head height must rise above `SLOUCH_EXIT`. The lean must fall below `LEAN_EXIT`. This stops the state from flickering when your posture is close to a limit.
 
-The limits and times are constants at the top of `posture.py`. The main ones are `SLOUCH`, `LEAN`, `GRACE`, `REPEAT`, `DOWN_DELAY` and `UP_DELAY`. The window shows the live numbers.
+The limits and times are constants at the top of `posture.py`. The main ones are `SLOUCH`, `LEAN`, `GRACE`, `REPEAT`, `DOWN_DELAY` and `UP_DELAY`. The bars in the window show the live numbers and the limits.
 
 ## Breaks
 
