@@ -66,6 +66,27 @@ The events are `start`, `stop`, `calibrate`, `pause`, `resume`, `away`, `back`, 
 
 Run `python3 tests/test_posture.py`. The test needs no install.
 
+## Desktop integration
+
+To start the app from the application menu, save this as `~/.local/share/applications/posture-check.desktop`:
+
+```ini
+[Desktop Entry]
+Type=Application
+Name=Posture Check
+Comment=Webcam posture reminder
+Exec=<UV> run <REPO>/posture.py
+Path=<REPO>
+Icon=<REPO>/icon/posture-check.svg
+Terminal=false
+Categories=Utility;
+Keywords=posture;webcam;health;
+```
+
+Replace `<UV>` with the full path of `uv` (run `which uv`). Replace `<REPO>` with the full path of the `posture-check` folder. Use full paths. The file does not expand `~` or `$HOME`.
+
+Then run `update-desktop-database ~/.local/share/applications`. If "Posture Check" does not show in the menu, log out and in again.
+
 ## Plans
 
 See [DEVEL-TODO.md](DEVEL-TODO.md).
