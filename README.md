@@ -57,6 +57,10 @@ Run `python3 tests/test_posture.py`. The test needs no install.
 
 See [DEVEL-TODO.md](DEVEL-TODO.md).
 
+## License
+
+MIT. See [LICENSE](LICENSE). The model file keeps its own license (Apache 2.0).
+
 ## Credits
 
 The pose model is `pose_landmarker_lite` from [MediaPipe](https://github.com/google-ai-edge/mediapipe) by Google (Apache 2.0).
